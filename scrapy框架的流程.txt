@@ -1,0 +1,81 @@
+1、文件夹下创建一个scrapy项目文件
+scrapy startproject xxx
+2、文件夹下面就有个spider文件夹， 切换到创建的文件
+cd tutorial
+scrapy genspider quotes  www.baidu.com
+会生成一个 quotes.py的文件这就是刚刚建立的爬虫文件
+name、allowed_domains 和 start_urls，还有一个方法 parse。
+
+3、创建item
+item是保存爬取内容的容器，使用方法跟字典类似
+创建 Item 需要继承 scrapy.Item 类，并且定义类型为 scrapy.Field 的字段。观察目标网站，我们可以获取到的内容有 text、author、tags。
+（获取的内容不同需要定义的字段就越多）
+
+4、解析response
+response的结果是在spider里面我们创建的quotes里面的parse中改写 并接受
+数据的解析可以用 xpath或者css选择器
+
+
+5、准备开始使用item
+接下来就要使用它了。Item 可以理解为一个字典，不过在声明的时候需要实例化。
+然后依次用刚才解析的结果赋值 Item 的每一个字段，最后将 Item 返回即可。
+改写依然是刚刚我们定义的这个quote里面，对item赋值
+
+
+也就是在parse函数中把清洗出来的值放入到item这个字典中例如
+     quotes = response.css('.quote')#先用选择器选择出包含有quote的对象并赋值
+        for quote in quotes: #for 循环对每个 quote 遍历，解析每个 quote 的内容。
+			item = QuoteItem()
+			item['text'] = quote.css('.text::text').extract_first()#以使用 extract_first() 方法，对于 tags，要获取所有结果组成的列表，所以使用 extract() 方法。
+        	item['author'] = quote.css('.author::text').extract_first()
+        	item['tags'] = quote.css('.tags .tag::text').extract()
+
+
+
+6、开始编写请求
+parse函数处理了 response，而每页的解析方式都差不多，
+那么如果要爬取整个网站，需要添加翻页。可以继续在parse函数中添加下列的代码
+next = response.css('.pager .next a::attr(href)').extract_first()
+url = response.urljoin(next)
+yield scrapy.Request(url=url, callback=self.parse)
+第一句代码首先通过 CSS 选择器获取下一个页面的链接，即要获取 a 超链接中的 href 属性。这里用到了::attr(href) 操作。然后再调用 extract_first() 方法获取内容。
+
+第二句代码调用了 urljoin() 方法，urljoin() 方法可以将相对 URL 构造成一个绝对的 URL。例如，获取到的下一页地址是 /page/2，urljoin() 方法处理后得到的结果就是：http://quotes.toscrape.com/page/2/。
+
+第三句代码通过 url 和 callback 变量构造了一个新的请求，回调函数 callback 依然使用 parse() 方法。这个请求完成后，响应会重新经过 parse 方法处理，得到第二页的解析结果，然后生成第二页的下一页，也就是第三页的请求。这样爬虫就进入了一个循环，直到最后一页。
+
+7、爬取代码已经写完了
+可以运行尝试
+scrapy crawl quotes
+
+
+8、保存到文件
+要完成这个任务其实不需要任何额外的代码，Scrapy 提供的 Feed Exports 可以轻松将抓取结果输出。例如，我们想将上面的结果保存成 JSON 文件，可以执行如下命令：
+scrapy crawl quotes -o quotes.json
+命令运行后，项目内多了一个 quotes.json 文件，文件包含了刚才抓取的所有内容，内容是 JSON 格式。
+
+另外我们还可以每一个 Item 输出一行 JSON，输出后缀为 jl，为 jsonline 的缩写，命令如下所示：
+scrapy crawl quotes -o quotes.jl
+
+9如果要保存到数据库中
+Item Pipeline 为项目管道。当 Item 生成后，它会自动被送到 Item Pipeline 进行处理，我们常用 Item Pipeline 来做如下操作。
+
+清洗 HTML 数据
+验证爬取数据，检查爬取字段
+查重并丢弃重复内容
+将爬取结果储存到数据库
+
+9存储到mysql的方法
+在pipeline里面更改配置文件
+
+
+
+
+
+
+
+
+
+
+
+
